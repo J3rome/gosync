@@ -1,5 +1,34 @@
                                       GOSYNC
 
+Added Features:
+---------------
+
+1. Fixed "wxSimpleApp deprecated" warning.
+
+2. Tray Icon: Click to hide or show the window, right click to enable/disable the sync process or to exit the program
+
+3. user\_settings.yaml file: (copy to $HOME/.gosync/ folder along with your "client\_secrets.json" file)
+
+    saveCredentials: True if you want to save your credentials. Default: False
+    
+    syncFolder: Folder to save your files. Default: $HOME/Google Drive.
+    
+    syncInterval: Number of seconds between syncs. Default: 600.
+    
+    syncOnStart: True if you want to start the sync process when starting GoSync.
+
+Install: 
+
+clone repository and:
+
+python setup.py install
+
+
+
+
+Original Readme:
+----------------
+
 GoSync is an open source Google Drive client for Linux written in python language.
 It's not perfect yet but it does the job. GoSync is released under GNU GPL version 2.0.
 

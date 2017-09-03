@@ -31,13 +31,14 @@ mainWindowStyle = wx.DEFAULT_FRAME_STYLE & (~wx.CLOSE_BOX) & (~wx.MAXIMIZE_BOX)
 HERE=os.path.abspath(os.path.dirname(__file__))
 
 class PageAccount(wx.Panel):
-    def __init__(self, parent, sync_model):
+    def __init__(self, parent, controller):
         wx.Panel.__init__(self, parent, size=parent.GetSize())
 
-        self.sync_model = sync_model
+        self.controller = controller
+        self.sync_model = controller.sync_model
         self.totalFiles = 0
 
-        aboutdrive = sync_model.DriveInfo()
+        aboutdrive = self.controller.sync_model.DriveInfo()
         self.driveUsageBar = DriveUsageBox(self, long(aboutdrive['quotaBytesTotal']), -1)
         self.driveUsageBar.SetStatusMessage("Calculating your categorical Google Drive usage. Please wait.")
         self.driveUsageBar.SetMoviesUsage(0)
@@ -68,8 +69,13 @@ class PageAccount(wx.Panel):
             self.driveUsageBar.SetAudioUsage(self.sync_model.GetAudioUsage())
             self.driveUsageBar.SetPhotoUsage(self.sync_model.GetPhotoUsage())
             self.driveUsageBar.RePaint()
+            if self.sync_model.usersettings.syncOnStart == "True":
+                while (self.sync_model.driveTree == None):
+                    time.sleep(5)
+                self.controller.OnToggleSync(0)
         else:
             self.driveUsageBar.SetStatusMessage("Sorry, could not calculate your Google Drive usage.")
+
 
     def OnUsageCalculationUpdate(self, event):
         percent = (event.data * 100)/self.totalFiles
@@ -79,9 +85,55 @@ class PageAccount(wx.Panel):
         self.totalFiles = event.data
         self.driveUsageBar.SetStatusMessage("Calculating your categorical Google Drive usage. Please wait.")
 
+
+class GoSyncTrayIcon(wx.TaskBarIcon):
+    toggleString = ['Disable Sync', 'Enable Sync']
+
+    def __init__(self, goSyncController):
+        super(GoSyncTrayIcon, self).__init__()
+        self.goSyncController = goSyncController
+        self.set_icon(TRAY_ICON)
+        self.Bind(wx.EVT_TASKBAR_LEFT_DOWN, self.on_left_down)
+
+    def CreateMenuItem(self, menu, label, func):
+        item = wx.MenuItem(menu, -1, label)
+        menu.Bind(wx.EVT_MENU, func, id=item.GetId())
+        menu.AppendItem(item)
+        return item
+
+    def CreatePopupMenu(self):
+        menu = wx.Menu()
+        self.CreateMenuItem(menu, self.toggleString[0 if self.goSyncController.sync_model.IsSyncEnabled() else 1], self.on_toggle)
+        menu.AppendSeparator()
+        self.CreateMenuItem(menu, 'Exit', self.on_exit)
+        return menu
+
+    def set_icon(self, path):
+        icon = wx.IconFromBitmap(wx.Bitmap(path))
+        self.SetIcon(icon, TRAY_TOOLTIP)
+
+    def on_left_down(self, event):
+        if (self.goSyncController.IsShown()):
+            self.goSyncController.Hide()
+        else:
+            self.goSyncController.Show()
+
+    def on_toggle(self, event):
+        self.goSyncController.OnToggleSync(0)
+
+
+    def on_exit(self, event):
+        # wx.CallAfter(self.Destroy)
+        # self.frame.Close()
+        self.goSyncController.OnExit(0)
+
+
 class GoSyncController(wx.Frame):
     def __init__(self):
         wx.Frame.__init__(self, None, title="GoSync", size=(520,400), style=mainWindowStyle)
+
+        self.tbIcon = GoSyncTrayIcon(self)
+
 
         try:
             self.sync_model = GoSyncModel()
@@ -99,6 +151,8 @@ class GoSyncController(wx.Frame):
                                     'Error', wx.OK | wx.ICON_EXCLAMATION)
             res = dial.ShowModal()
             sys.exit(1)
+
+
 
         self.aboutdrive = self.sync_model.DriveInfo()
 
@@ -128,7 +182,7 @@ class GoSyncController(wx.Frame):
         nb = wx.Notebook(p)
 
         # create the page windows as children of the notebook
-        accountPage = PageAccount(nb, self.sync_model)
+        accountPage = PageAccount(nb, self)
         settingsPage = SettingsPage(nb, self.sync_model)
 
         # add the pages to the notebook with the label to show on the tab
@@ -214,6 +268,8 @@ class GoSyncController(wx.Frame):
                                 'Question', wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
         res = dial.ShowModal()
         if res == wx.ID_YES:
+            self.tbIcon.RemoveIcon()
+            self.tbIcon.Destroy()
             wx.CallAfter(self.Destroy)
 
     def OnToggleSync(self, evt):
@@ -223,6 +279,7 @@ class GoSyncController(wx.Frame):
         else:
             self.sync_model.StartSync()
             self.sb.SetStatusText("Running", 1)
+
 
     def OnAbout(self, evt):
         """About GoSync"""

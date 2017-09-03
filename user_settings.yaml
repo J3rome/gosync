@@ -1,0 +1,4 @@
+saveCredentials: True
+syncFolder: /media/bruno/Dados/Google Drive
+syncInterval: 1800
+syncOnStart: True

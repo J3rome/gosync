@@ -30,6 +30,7 @@ from defines import *
 from GoSyncEvents import *
 from GoSyncDriveTree import GoogleDriveTree
 import json, pickle
+from oauth2client.client import OAuth2Credentials
 
 class ClientSecretsNotFound(RuntimeError):
     """Client secrets file was not found"""
@@ -66,8 +67,36 @@ google_docs_mimelist = ['application/vnd.google-apps.spreadsheet', \
                             'application/vnd.google-apps.document', \
                             'application/vnd.google-apps.map']
 
+class userSettings:
+    def __init__(self):
+        self.saveCredentials = False
+        self.syncFolder = os.path.join(os.environ['HOME'], "Google Drive")
+        self.syncInterval = 600
+        self.syncOnStart = False
+
+def parseUserSettings(config_path):
+    settings = userSettings()
+    userSetPath = os.path.join(config_path, "user_settings.yaml")
+    if not os.path.exists(userSetPath) or \
+            not os.path.isfile(userSetPath):
+            sfile = open(userSetPath, 'w')
+            sfile.write('saveCredentials: {}\n'.format(settings.saveCredentials))
+            sfile.write('syncFolder: {}\n'.format(settings.syncFolder))
+            sfile.write('syncInterval: {}\n'.format(settings.syncInterval))
+            sfile.write('syncOnStart: {}\n'.format(settings.syncOnStart))
+            sfile.close()
+    else:
+        sfile = open(userSetPath, 'r')
+        for line in sfile:
+            tokens = line.split(":")
+            if (hasattr(settings,tokens[0])):
+                setattr(settings,tokens[0],tokens[1].strip(' \n'));
+        sfile.close();
+    return settings;
+
 class GoSyncModel(object):
     def __init__(self):
+
         self.calculatingDriveUsage = False
         self.driveAudioUsage = 0
         self.driveMoviesUsage = 0
@@ -80,9 +109,12 @@ class GoSyncModel(object):
         self.updates_done = 0
 
         self.config_path = os.path.join(os.environ['HOME'], ".gosync")
+        self.usersettings = parseUserSettings(self.config_path)
+
         self.credential_file = os.path.join(self.config_path, "credentials.json")
         self.settings_file = os.path.join(self.config_path, "settings.yaml")
-        self.base_mirror_directory = os.path.join(os.environ['HOME'], "Google Drive")
+        # self.base_mirror_directory = os.path.join(os.environ['HOME'], "Google Drive")
+        self.base_mirror_directory = self.usersettings.syncFolder;
         self.client_secret_file = os.path.join(os.environ['HOME'], '.gosync', 'client_secrets.json')
         self.sync_selection = []
         self.config_file = os.path.join(os.environ['HOME'], '.gosync', 'gosyncrc')
@@ -90,6 +122,7 @@ class GoSyncModel(object):
         self.account_dict = {}
         self.drive_usage_dict = {}
         self.config=None
+
 
         if not os.path.exists(self.config_path):
             os.mkdir(self.config_path, 0755)
@@ -104,7 +137,7 @@ class GoSyncModel(object):
         if not os.path.exists(self.settings_file) or \
                 not os.path.isfile(self.settings_file):
             sfile = open(self.settings_file, 'w')
-            sfile.write("save_credentials: False")
+            sfile.write("save_credentials: {}".format(self.usersettings.saveCredentials))
             sfile.write("\n")
             sfile.write("save_credentials_file: ")
             sfile.write(self.credential_file)
@@ -127,15 +160,16 @@ class GoSyncModel(object):
         if not os.path.exists(self.config_file):
             self.CreateDefaultConfigFile()
 
+
         try:
             self.LoadConfig()
         except:
             raise
 
-
         self.iobserv_handle = self.observer.schedule(FileModificationNotifyHandler(self),
                                                      self.mirror_directory, recursive=True)
 
+        self.driveTree = None
         self.sync_lock = threading.Lock()
         self.sync_thread = threading.Thread(target=self.run)
         self.usage_calc_thread = threading.Thread(target=self.calculateUsage)
@@ -162,6 +196,7 @@ class GoSyncModel(object):
         self.sync_thread.start()
         self.usage_calc_thread.start()
         self.observer.start()
+
 
     def IsUserLoggedIn(self):
         return self.is_logged_in
@@ -219,11 +254,21 @@ class GoSyncModel(object):
 
     def DoAuthenticate(self):
         try:
-            self.authToken = GoogleAuth(self.settings_file)
-            self.authToken.LocalWebserverAuth()
+            if not os.path.exists(self.credential_file):
+                self.authToken = GoogleAuth(self.settings_file)
+            else:
+                self.authToken = GoogleAuth();
+                self.authToken.LoadCredentialsFile(self.credential_file)
+            if (self.authToken.credentials is None):
+                self.authToken.LocalWebserverAuth()
+            elif self.authToken.access_token_expired :
+                self.authToken.Refresh()
+            else:
+                self.authToken.Authorize()
             self.drive = GoogleDrive(self.authToken)
             self.is_logged_in = True
         except:
+
             dial = wx.MessageDialog(None, "Authentication Rejected!\n",
                                     'Information', wx.ID_OK | wx.ICON_EXCLAMATION)
             dial.ShowModal()
@@ -734,7 +779,8 @@ class GoSyncModel(object):
 
             self.sync_lock.release()
 
-            time_left = 600
+            # time_left = 600
+            time_left = int(self.usersettings.syncInterval)
 
             while (time_left):
                 GoSyncEventController().PostEvent(GOSYNC_EVENT_SYNC_TIMER,
