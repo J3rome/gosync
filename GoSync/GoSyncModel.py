@@ -109,6 +109,9 @@ class GoSyncModel(object):
         self.updates_done = 0
 
         self.config_path = os.path.join(os.environ['HOME'], ".gosync")
+        if not os.path.exists(self.config_path):
+            os.mkdir(self.config_path, 0755)
+            raise ClientSecretsNotFound()
         self.usersettings = parseUserSettings(self.config_path)
 
         self.credential_file = os.path.join(self.config_path, "credentials.json")
@@ -122,11 +125,6 @@ class GoSyncModel(object):
         self.account_dict = {}
         self.drive_usage_dict = {}
         self.config=None
-
-
-        if not os.path.exists(self.config_path):
-            os.mkdir(self.config_path, 0755)
-            raise ClientSecretsNotFound()
 
         if not os.path.exists(self.base_mirror_directory):
             os.mkdir(self.base_mirror_directory, 0755)
