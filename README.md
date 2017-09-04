@@ -44,8 +44,8 @@ Then run ``GoSync &``
 
 #### Configuration
 
-The default ``user_settings.yaml`` file will be created if you don't provide him.
-You can do further configuration by editing him on your ``.gosync`` folder.
+The default ``user_settings.yaml`` file will be created if you don't provide it.
+You can do further configuration by editing it on your ``.gosync`` folder.
 
 Original Readme:
 ----------------
