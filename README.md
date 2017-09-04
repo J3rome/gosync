@@ -1,30 +1,51 @@
-                                      GOSYNC
-
-Added Features:
+Added Features
 ---------------
 
-1. Fixed "wxSimpleApp deprecated" warning.
+1. Fixed ``wxSimpleApp deprecated`` warning.
 
 2. Tray Icon: Click to hide or show the window, right click to enable/disable the sync process or to exit the program
 
-3. user\_settings.yaml file: (copy to $HOME/.gosync/ folder along with your "client\_secrets.json" file)
+3. ``user_settings.yaml`` file: (copy to ``$HOME/.gosync/`` folder along with your ``client_secrets.json`` file)
 
-    saveCredentials: True if you want to save your credentials. Default: False
+    ``saveCredentials``: True if you want to save your credentials. Default: ``False``
     
-    syncFolder: Folder to save your files. Default: $HOME/Google Drive.
+    ``syncFolder``: Folder to save your files. Default: ``$HOME/Google Drive.``
     
-    syncInterval: Number of seconds between syncs. Default: 600.
+    ``syncInterval``: Number of seconds between syncs. Default: ``600``.
     
-    syncOnStart: True if you want to start the sync process when starting GoSync.
+    ``syncOnStart``: True if you want to start the sync process when starting GoSync. Default: ``False``
 
-Install: 
+Instructions
+------------
 
-clone repository and:
+#### Install
 
-python setup.py install
+There's one tricky dependency to be installed.
 
+If you are using Ubuntu, simply run this command
 
+    sudo apt install python-wxgtk3.0
 
+If you are using something else, read more [here](https://wiki.wxpython.org/How%20to%20install%20wxPython).
+
+Finally, run these commands
+
+    git clone https://github.com/blegora/gosync
+    cd gosync
+    sudo python setup.py install
+    
+Dependencies should be already installed. If you get any import errors, refer to the depencies section below
+
+#### Running
+
+Add your ``client_secrets.json`` in ``.gosync`` folder
+
+Then run ``GoSync &``
+
+#### Configuration
+
+The default ``user_settings.yaml`` file will be created if you don't provide him.
+You can do further configuration by editing him on your ``.gosync`` folder.
 
 Original Readme:
 ----------------
